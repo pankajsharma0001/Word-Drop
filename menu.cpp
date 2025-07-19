@@ -241,3 +241,4 @@ void showMenu() {
     free(bgBuffer);
     closegraph();
 }
+

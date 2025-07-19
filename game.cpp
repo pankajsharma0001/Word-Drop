@@ -803,7 +803,7 @@ void showSelectionMenu()
     bool redraw = true; 
 
     void* bgBuffer = malloc(imagesize(0, 0, 800, 600));
-    readimagefile("resources/menu_background.bmp", 0, 0, 800, 600);
+    readimagefile("resources/user_menu_background.bmp", 0, 0, 800, 600);
     getimage(0, 0, 800, 600, bgBuffer);
 
     while (state != QUIT)
