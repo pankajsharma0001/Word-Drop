@@ -93,21 +93,19 @@ void drawMenu(int hoverIndex = -1) {
 void showInstructions() {
     setcolor(GREEN);
     settextstyle(BOLD_FONT, HORIZ_DIR, 4);
-    outtextxy(250, 80, (char*)"Instructions");
+    outtextxy(270, 120, (char*)"Instructions");
 
     setcolor(WHITE);
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 2);
     
-    outtextxy(50, 140, (char*)"1. Words will fall from the top of the screen.");
-    outtextxy(50, 170, (char*)"2. Type words before they hit the bottom.");
-    outtextxy(50, 200, (char*)"3. Each correct word increases score/ restores health.");
-    outtextxy(50, 230, (char*)"4. Incorrect typing or missed words reduce health.");
-    outtextxy(50, 260, (char*)"5. Press 'Space' to pause/resume the game.");
-    outtextxy(50, 290, (char*)"6. Try to keep your streak for bonus accuracy stats.");
-    outtextxy(50, 320, (char*)"7. Reach the highest score and show in leaderboard!");
+    outtextxy(100, 200, (char*)" 1 / 2 / Mouse Click : select game mode");
+    outtextxy(100, 230, (char*)" 'Backspace' : delete the last character");
+    outtextxy(100, 260, (char*)" 'Esc'       : exit the game");
+    outtextxy(100, 290, (char*)" 'Space'     : pause/resume");
+    outtextxy(100, 320, (char*)"  'R'        : restart the game");
 
     setcolor(YELLOW);
-    outtextxy(200, 380, (char*)"Press any key to return to the menu...");
+    outtextxy(150, 360, (char*)"Press any key to return to the menu...");
 }
 
 void showMenu() {
