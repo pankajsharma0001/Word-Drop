@@ -255,9 +255,10 @@ Word createWord()
 
 void spawnNewWords()
 {
-    if (frameCount % 50 == 0 || words.empty())
+    int x = score >= 100 ? 25 : 50;
+    if (frameCount % x == 0 || words.empty())
     { // spawn a new word every 50 frames
-        if (words.size() >= 8)
+        if (words.size() >= 10)
             return; // limit to 10 active
         Word newWord = createWord();
         words.push_back(newWord);
