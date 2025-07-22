@@ -25,6 +25,10 @@
 
 - ⌨️ Type falling words to eliminate them in real time  
 - 💥 Words fall like meteors — increasing in speed as you score more  
+- 🧠 Streak system: Type 10 perfect words in a row to earn a power-up
+- ⚡ Power-Ups:
+    • 🐢 Slow Time — slows down falling speed for a few seconds  
+    • 💰 Score Boost — doubles your score temporarily
 - ❤️ Health system: gain on success, lose on failure  
 - 🔊 Sound effects for correct, incorrect, and game over events  
 - 🧠 Custom word mode: enter your own words or sentences  
@@ -45,6 +49,7 @@
 | `Backspace`          | Delete last typed character     |
 | `Space`              | Pause / Resume the game         |
 | `R`                  | Restart after Game Over         |
+| `F1`                 | Enable / Disable sound          |
 | `Esc`                | Quit the game                   |
 | `1` / `2` / Mouse    | Navigate menus and selections   |
 

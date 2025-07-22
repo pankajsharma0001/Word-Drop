@@ -52,6 +52,26 @@ int totalKeystrokes = 0;
 int correctKeystrokes = 0;
 int longestStrick = 0;
 int currentStrick = 0;
+int powerUpStreak = 0; // Count consecutive power-ups
+bool soundEnabled = true;
+int previousSpeed = fallSpeed;
+int glowTimer = 0;
+
+bool slowTimeActive = false;
+bool scoreBoostActive = false;
+int slowTimeDuration = 5000;  // milliseconds
+int scoreBoostDuration = 5000;
+unsigned long powerUpStartTime = 0;
+
+bool showPowerUpMessage = false;
+char currentPowerUpMessage[50];
+unsigned long messageStartTime = 0;
+int messageDuration = 1200;  // in milliseconds (1.2 seconds)
+
+int messageX = 0;  // X position of message
+int messageTargetX = 350; // Center position
+int messageStartX = -300; // Start from off-screen
+int messageEndX = 800;    // Slide out to the right
 
 void loadWordsFromFile(const string &filename)
 {
@@ -131,6 +151,40 @@ int countMatchingPrefix(const std::string &typed, const std::string &actual)
     return len; // all typed chars match
 }
 
+void drawSpeedBar(int speed, int glowTimer)
+{
+    int barX = 30;
+    int barY = 550;
+    int blockWidth = 30;
+    int blockHeight = 20;
+    int spacing = 5;
+
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 2);
+    setcolor(WHITE);
+    outtextxy(barX, barY - 30, (char *)"Speed:");
+
+    for (int i = 1; i <= 7; i++)
+    {
+        int x = barX + (i - 1) * (blockWidth + spacing);
+        int y = barY;
+
+        if (i <= speed)
+        {
+            if (glowTimer > 0 && i == speed)
+                setfillstyle(SOLID_FILL, YELLOW); // glowing block
+            else
+                setfillstyle(SOLID_FILL, LIGHTGREEN); // normal filled
+        }
+        else
+        {
+            setfillstyle(SOLID_FILL, DARKGRAY); // unfilled
+        }
+
+        bar(x, y, x + blockWidth, y + blockHeight);
+        rectangle(x, y, x + blockWidth, y + blockHeight); // outline
+    }
+}
+
 void drawHUD()
 {
     setcolor(WHITE);
@@ -139,18 +193,24 @@ void drawHUD()
     char buffer[100];
 
     setfillstyle(SOLID_FILL, DARKGRAY);
-    bar(5, 5, 250, 90); // Score area
+    bar(30, 5, 250, 90); // Score area
     setcolor(WHITE);
-    rectangle(5, 5, 250, 90);
+    rectangle(30, 5, 250, 90);
 
     sprintf(buffer, "Score: %d", score);
-    outtextxy(10, 10, buffer);
+    outtextxy(35, 10, buffer);
 
     sprintf(buffer, "Health: %d", health);
-    outtextxy(10, 40, buffer);
+    outtextxy(35, 40, buffer);
 
     sprintf(buffer, "Typed: ");
-    outtextxy(10, 70, buffer);
+    outtextxy(35, 70, buffer);
+
+    drawSpeedBar(fallSpeed, glowTimer);
+
+    setcolor(LIGHTCYAN);
+    settextstyle(DEFAULT_FONT, HORIZ_DIR, 2);
+    outtextxy(650, 15, (char*)(soundEnabled ? "Sound: ON" : "Sound: OFF"));
 
     string displayText = typed;
     if (showCursor)
@@ -160,7 +220,7 @@ void drawHUD()
 
     char typedBuffer[100];
     strcpy(typedBuffer, displayText.c_str()); // convert string to char*
-    outtextxy(100, 70, typedBuffer);          // display typed text
+    outtextxy(125, 70, typedBuffer);          // display typed text
 }
 
 void drawWords()
@@ -207,9 +267,38 @@ void drawWords()
         // Missed word
         if (words[i].y >= screenHeight - 20)
         {
-            playSound("resources/wrong.wav");
+            if (soundEnabled)
+                playSound("resources/wrong.wav");
             health--;
             words.erase(words.begin() + i);
+        }
+    }
+}
+
+void displayPowerUpMessage(const char* message) {
+    strcpy(currentPowerUpMessage, message);
+    messageStartTime = clock();
+    showPowerUpMessage = true;
+    messageX = messageStartX;  // Start off-screen
+}
+
+void checkForPowerUp() {
+    if (powerUpStreak == 10) {
+        powerUpStreak = 0;
+
+        int randPower = rand() % 2;
+        if(fallSpeed == 1)
+            randPower = 1; // Ensure at least one power-up is available
+
+        if (randPower == 0) {
+            slowTimeActive = true;
+            powerUpStartTime = clock();
+            fallSpeed /= 2;  // slow down the falling speed
+            displayPowerUpMessage("Slow Time Activated!");
+        } else {
+            scoreBoostActive = true;
+            powerUpStartTime = clock();
+            displayPowerUpMessage("Score Boost Activated!");
         }
     }
 }
@@ -232,9 +321,17 @@ int findExactMatch(const string &typed)
 
 void acceptWord(int index)
 {
-    playSound("resources/correct.wav");
-    score++;
+    if (soundEnabled)
+        playSound("resources/correct.wav");
+    
+    int baseScore = 1;
+    if (scoreBoostActive)
+        baseScore *= 2;
+
+    score += baseScore;
     currentStrick++;
+    powerUpStreak++; // Increment power-up streak
+    checkForPowerUp();
     if (health < 5)
         health++; // reward a life
     words.erase(words.begin() + index);
@@ -267,12 +364,16 @@ void spawnNewWords()
 
 void updateSpeed()
 {
-    if (score % 5 == 0 && score != 0 && score != lastMilestone)
+    if (score % 10 == 0 && score != 0 && score != lastMilestone)
     {
         if (fallSpeed < 7) // Limit fall speed to a maximum value
             fallSpeed++;
         lastMilestone = score;
     }
+    if (fallSpeed > previousSpeed) {
+        glowTimer = 15; // how many frames to glow
+    }
+    previousSpeed = fallSpeed;
 }
 
 void resetGame()
@@ -289,6 +390,7 @@ void resetGame()
     restartRequested = false;
     correctKeystrokes = 0;
     totalKeystrokes = 0;
+    longestStrick = 0;
 }
 
 void showPauseScreen()
@@ -434,9 +536,11 @@ void handleTyping()
                 }
             }
 
-            playSound("resources/wrong.wav");
+            if (soundEnabled)
+                playSound("resources/wrong.wav");
             longestStrick = currentStrick > longestStrick ? currentStrick : longestStrick;
             currentStrick = 0; // reset current streak
+            powerUpStreak = 0;
             health--;
             typed.clear();
         }
@@ -516,6 +620,35 @@ void runGame()
             putimage(0, 0, bgFrames[currentFrame], COPY_PUT);
 
             handleTyping();
+            
+            static bool f1Pressed = false;
+            if (GetAsyncKeyState(VK_F1) & 0x8000) {
+                if (!f1Pressed) {
+                    soundEnabled = !soundEnabled;
+                    if (!soundEnabled) {
+                        PlaySound(NULL, 0, 0); // stop any playing sound
+                    }
+                    f1Pressed = true;
+                }
+            } else {
+                f1Pressed = false;
+            }
+
+            if (glowTimer > 0) {
+                glowTimer--;
+            }
+            
+            if (slowTimeActive || scoreBoostActive) {
+                if ((clock() - powerUpStartTime) > (slowTimeActive ? slowTimeDuration : scoreBoostDuration)) {
+                    if (slowTimeActive) {
+                        fallSpeed *= 2; // reset to original
+                        slowTimeActive = false;
+                    }
+                    if (scoreBoostActive) {
+                        scoreBoostActive = false;
+                    }
+                }
+            }
 
             if (!paused && !gameOver)
             {
@@ -543,9 +676,37 @@ void runGame()
                 }
             }
 
+            if (showPowerUpMessage) {
+                unsigned long elapsed = clock() - messageStartTime;
+
+                if (elapsed < messageDuration) {
+                    // SLIDE IN (first 500 ms)
+                    if (elapsed < 500) {
+                        messageX = messageStartX + (messageTargetX - messageStartX) * (elapsed / 500.0) * (elapsed / 500.0);
+                    }
+                    // HOLD (middle 2000 ms)
+                    else if (elapsed < 2500) {
+                        messageX = messageTargetX;
+                    }
+                    // SLIDE OUT (last 500 ms)
+                    else {
+                        int slideOutTime = elapsed - 2500;
+                        messageX = messageStartX + (messageTargetX - messageStartX) * (elapsed / 500.0) * (elapsed / 500.0); 
+                    }
+
+                    setcolor(YELLOW);
+                    settextstyle(BOLD_FONT, HORIZ_DIR, 2);
+                    outtextxy(messageX, 50, currentPowerUpMessage);
+
+                } else {
+                    showPowerUpMessage = false;
+                }
+            }
+
             if (health <= 0 && !gameOver)
             {
-                playSound("resources/game_over.wav");
+                if (soundEnabled)
+                    playSound("resources/game_over.wav");
                 playOpeningTransition();
                 gameOver = true;
 
@@ -764,8 +925,6 @@ void userInput()
 
 void drawSelectionMenu(int hoverIndex = -1)
 {
-    // cleardevice(); // Clear screen before drawing menu
-
     setcolor(GREEN);
     settextstyle(BOLD_FONT, HORIZ_DIR, 4);
     outtextxy(220, 100, (char *)"TYPING SPEED GAME");

@@ -99,13 +99,15 @@ void showInstructions() {
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 2);
     
     outtextxy(100, 200, (char*)" 1 / 2 / Mouse Click : select game mode");
-    outtextxy(100, 230, (char*)" 'Backspace' : delete the last character");
-    outtextxy(100, 260, (char*)" 'Esc'       : exit the game");
-    outtextxy(100, 290, (char*)" 'Space'     : pause/resume");
-    outtextxy(100, 320, (char*)"  'R'        : restart the game");
+    outtextxy(100, 230, (char*)" 'Backspace'    : delete the last character");
+    outtextxy(100, 260, (char*)" 'Esc'          : exit the game");
+    outtextxy(100, 290, (char*)" 'Space'        : pause/resume");
+    outtextxy(100, 320, (char*)" 'R'            : restart the game");
+    outtextxy(100, 350, (char*)" 'F1'           : toggle sound on/off");
+    outtextxy(100, 380, (char*)" 10 word streak : earn a power-up");
 
     setcolor(YELLOW);
-    outtextxy(150, 360, (char*)"Press any key to return to the menu...");
+    outtextxy(150, 410, (char*)"Press any key to return to the menu...");
 }
 
 void showMenu() {
