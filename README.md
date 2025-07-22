@@ -26,7 +26,7 @@
 - ⌨️ Type falling words to eliminate them in real time  
 - 💥 Words fall like meteors — increasing in speed as you score more  
 - 🧠 Streak system: Type 10 perfect words in a row to earn a power-up
-- ⚡ Power-Ups:
+- ⚡ Power-Ups:  
     • 🐢 Slow Time — slows down falling speed for a few seconds  
     • 💰 Score Boost — doubles your score temporarily
 - ❤️ Health system: gain on success, lose on failure  
