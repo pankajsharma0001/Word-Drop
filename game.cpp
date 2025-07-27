@@ -56,6 +56,7 @@ int powerUpStreak = 0; // Count consecutive power-ups
 bool soundEnabled = true;
 int previousSpeed = fallSpeed;
 int glowTimer = 0;
+int originalFallSpeed = 1;
 
 bool slowTimeActive = false;
 bool scoreBoostActive = false;
@@ -293,6 +294,7 @@ void checkForPowerUp() {
         if (randPower == 0) {
             slowTimeActive = true;
             powerUpStartTime = clock();
+            originalFallSpeed = fallSpeed;
             fallSpeed /= 2;  // slow down the falling speed
             displayPowerUpMessage("Slow Time Activated!");
         } else {
@@ -587,11 +589,12 @@ void runGame()
 {
     cleardevice();
 
+    // Load once — this buffer is reused and freed after all sessions
     void *gameOverBg = malloc(imagesize(0, 0, screenWidth, screenHeight));
     readimagefile("resources/game_over.bmp", 0, 0, screenWidth, screenHeight);
     getimage(0, 0, screenWidth, screenHeight, gameOverBg);
 
-    const int totalFrames = 30; // update based on how many frames you extracted
+    const int totalFrames = 30;
     std::vector<void *> bgFrames;
 
     for (int i = 0; i < totalFrames; ++i)
@@ -605,51 +608,57 @@ void runGame()
     }
 
     srand(time(0));
-    setbkcolor(BLACK);                           // black background
-    setcolor(WHITE);                             // white text
-    settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2); // readable size
+    setbkcolor(BLACK);
+    setcolor(WHITE);
+    settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2);
+
     do
     {
         resetGame();
-        playOpeningTransition(); // play opening transition
+        playOpeningTransition();
+
         while (!restartRequested)
         {
-            setactivepage(currentPage);     // Draw to this page
-            setvisualpage(1 - currentPage); // Display the other page
+            setactivepage(currentPage);
+            setvisualpage(1 - currentPage);
             int currentFrame = (frameCount / 2) % totalFrames;
             putimage(0, 0, bgFrames[currentFrame], COPY_PUT);
 
             handleTyping();
-            
+
+            // Toggle sound with F1
             static bool f1Pressed = false;
-            if (GetAsyncKeyState(VK_F1) & 0x8000) {
-                if (!f1Pressed) {
+            if (GetAsyncKeyState(VK_F1) & 0x8000)
+            {
+                if (!f1Pressed)
+                {
                     soundEnabled = !soundEnabled;
-                    if (!soundEnabled) {
-                        PlaySound(NULL, 0, 0); // stop any playing sound
-                    }
+                    if (!soundEnabled)
+                        PlaySound(NULL, 0, 0);
                     f1Pressed = true;
                 }
-            } else {
+            }
+            else
+            {
                 f1Pressed = false;
             }
 
-            if (glowTimer > 0) {
-                glowTimer--;
-            }
-            
-            if (slowTimeActive || scoreBoostActive) {
-                if ((clock() - powerUpStartTime) > (slowTimeActive ? slowTimeDuration : scoreBoostDuration)) {
-                    if (slowTimeActive) {
-                        fallSpeed *= 2; // reset to original
+            // Power-up duration check
+            if (slowTimeActive || scoreBoostActive)
+            {
+                if ((clock() - powerUpStartTime) > (slowTimeActive ? slowTimeDuration : scoreBoostDuration))
+                {
+                    if (slowTimeActive)
+                    {
+                        fallSpeed = originalFallSpeed;
                         slowTimeActive = false;
                     }
-                    if (scoreBoostActive) {
+                    if (scoreBoostActive)
                         scoreBoostActive = false;
-                    }
                 }
             }
 
+            // Game logic
             if (!paused && !gameOver)
             {
                 drawHUD();
@@ -658,9 +667,7 @@ void runGame()
                 updateSpeed();
                 frameCount++;
                 if (frameCount % 10 == 0)
-                { // toggle every ~0.5 seconds (10 × 50ms delay)
                     showCursor = !showCursor;
-                }
             }
             else
             {
@@ -676,37 +683,36 @@ void runGame()
                 }
             }
 
-            if (showPowerUpMessage) {
+            // Power-up message slide-in
+            if (showPowerUpMessage)
+            {
                 unsigned long elapsed = clock() - messageStartTime;
 
-                if (elapsed < messageDuration) {
-                    // SLIDE IN (first 500 ms)
-                    if (elapsed < 500) {
+                if (elapsed < messageDuration)
+                {
+                    if (elapsed < 500)
                         messageX = messageStartX + (messageTargetX - messageStartX) * (elapsed / 500.0) * (elapsed / 500.0);
-                    }
-                    // HOLD (middle 2000 ms)
-                    else if (elapsed < 2500) {
+                    else if (elapsed < 2500)
                         messageX = messageTargetX;
-                    }
-                    // SLIDE OUT (last 500 ms)
-                    else {
-                        int slideOutTime = elapsed - 2500;
-                        messageX = messageStartX + (messageTargetX - messageStartX) * (elapsed / 500.0) * (elapsed / 500.0); 
-                    }
+                    else
+                        messageX = messageEndX;
 
                     setcolor(YELLOW);
                     settextstyle(BOLD_FONT, HORIZ_DIR, 2);
                     outtextxy(messageX, 50, currentPowerUpMessage);
-
-                } else {
+                }
+                else
+                {
                     showPowerUpMessage = false;
                 }
             }
 
+            // Game Over check
             if (health <= 0 && !gameOver)
             {
                 if (soundEnabled)
                     playSound("resources/game_over.wav");
+
                 playOpeningTransition();
                 gameOver = true;
 
@@ -731,8 +737,7 @@ void runGame()
                         if (kbhit())
                         {
                             char ch = getch();
-                            if (ch == '\r')
-                                break;
+                            if (ch == '\r') break;
                             if (ch == '\b' && i > 0)
                             {
                                 i--;
@@ -754,16 +759,20 @@ void runGame()
             }
 
             delay(50);
-            currentPage = 1 - currentPage; // Switch pages for double buffering
+            currentPage = 1 - currentPage;
         }
 
     } while (restartRequested);
+
+    // 🔴 Free allocated images here to prevent memory leaks
     for (auto frame : bgFrames)
-    {
         free(frame);
-    }
+
+    free(gameOverBg);
+
     closegraph();
 }
+
 
 void userInput()
 {
