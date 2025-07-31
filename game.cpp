@@ -74,6 +74,14 @@ int messageTargetX = 350; // Center position
 int messageStartX = -300; // Start from off-screen
 int messageEndX = 800;    // Slide out to the right
 
+string recentlyAcceptedWord = "";
+int showAcceptedTimer = 0;
+int lastAcceptedX = 0;
+int lastAcceptedY = 0;
+int lastAcceptedWidth = 0;
+
+int acceptedGlowFrame = 0;
+
 void loadWordsFromFile(const string &filename)
 {
     ifstream fin(filename);
@@ -150,6 +158,100 @@ int countMatchingPrefix(const std::string &typed, const std::string &actual)
         }
     }
     return len; // all typed chars match
+}
+
+void drawMidpointCircle(int xc, int yc, int r, int color) {
+    setcolor(color);
+    int x = 0, y = r;
+    int p = 1 - r;
+
+    while (x <= y) {
+        // All 8 octants
+        putpixel(xc + x, yc + y, color);
+        putpixel(xc - x, yc + y, color);
+        putpixel(xc + x, yc - y, color);
+        putpixel(xc - x, yc - y, color);
+        putpixel(xc + y, yc + x, color);
+        putpixel(xc - y, yc + x, color);
+        putpixel(xc + y, yc - x, color);
+        putpixel(xc - y, yc - x, color);
+
+        x++;
+        if (p < 0)
+            p += 2 * x + 1;
+        else {
+            y--;
+            p += 2 * (x - y) + 1;
+        }
+    }
+}
+
+void drawEllipseMidpoint(int xc, int yc, int rx, int ry, int color) {
+    setcolor(color);
+    int x = 0, y = ry;
+    // Initial decision parameters of region 1
+    long long rxSq = (long long)rx * rx;
+    long long rySq = (long long)ry * ry;
+    long long twoRxSq = 2 * rxSq;
+    long long twoRySq = 2 * rySq;
+
+    long long px = 0;
+    long long py = twoRxSq * y;
+
+    // Region 1
+    long long p = (long long)(rySq - (rxSq * ry) + (0.25 * rxSq));
+    while (px < py) {
+        // Plot points based on 4-way symmetry
+        putpixel(xc + x, yc + y, color);
+        putpixel(xc - x, yc + y, color);
+        putpixel(xc + x, yc - y, color);
+        putpixel(xc - x, yc - y, color);
+
+        x++;
+        px += twoRySq;
+        if (p < 0)
+            p += rySq + px;
+        else {
+            y--;
+            py -= twoRxSq;
+            p += rySq + px - py;
+        }
+    }
+
+    // Region 2
+    p = (long long)(rySq * (x + 0.5) * (x + 0.5) + rxSq * (y - 1) * (y - 1) - rxSq * rySq);
+    while (y >= 0) {
+        putpixel(xc + x, yc + y, color);
+        putpixel(xc - x, yc + y, color);
+        putpixel(xc + x, yc - y, color);
+        putpixel(xc - x, yc - y, color);
+
+        y--;
+        py -= twoRxSq;
+        if (p > 0)
+            p += rxSq - py;
+        else {
+            x++;
+            px += twoRySq;
+            p += rxSq - py + px;
+        }
+    }
+}
+
+void drawBresenhamLine(int x0, int y0, int x1, int y1, int color) {
+    setcolor(color);
+    int dx = abs(x1 - x0), dy = abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+
+    while (true) {
+        putpixel(x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx)  { err += dx; y0 += sy; }
+    }
 }
 
 void drawSpeedBar(int speed, int glowTimer)
@@ -242,6 +344,11 @@ void drawWords()
         // Shadow
         setcolor(DARKGRAY);
         outtextxy(x + 2, y + 2, const_cast<char *>(full.c_str()));
+        
+        int ellipseX = textwidth(const_cast<char *>(full.c_str()));
+        int ellipseY = textheight(const_cast<char *>(full.c_str()));
+        
+        drawEllipseMidpoint(x + ellipseX/2, y + 10, ellipseX/2 + 14, ellipseY-2, 2);  // Ellipse behind the word
 
         // Draw matching prefix in highlight (YELLOW)
         if (matchLen > 0)
@@ -264,7 +371,7 @@ void drawWords()
             setcolor(words[i].color);
             outtextxy(x, y, const_cast<char *>(full.c_str()));
         }
-
+            
         // Missed word
         if (words[i].y >= screenHeight - 20)
         {
@@ -273,6 +380,24 @@ void drawWords()
             health--;
             words.erase(words.begin() + i);
         }
+    }
+
+    if (showAcceptedTimer > 0) {
+        int cx = lastAcceptedX + lastAcceptedWidth / 2;
+        int cy = lastAcceptedY + textheight(const_cast<char *>(recentlyAcceptedWord.c_str())) / 2;
+
+        // Animate glow by changing radius and color over time
+        int baseRadius = lastAcceptedWidth / 2 + 5;
+        int animatedRadius = baseRadius + (acceptedGlowFrame % 3); // 0, 1, 2, 0...
+
+        // Change color in pulse (optional)
+        int colors[] = {LIGHTBLUE, CYAN, LIGHTCYAN};
+        int color = colors[acceptedGlowFrame % 3];
+
+        drawEllipseMidpoint(cx, cy + 5, animatedRadius, color, color);
+
+        acceptedGlowFrame++;
+        showAcceptedTimer--;
     }
 }
 
@@ -334,8 +459,26 @@ void acceptWord(int index)
     currentStrick++;
     powerUpStreak++; // Increment power-up streak
     checkForPowerUp();
+
     if (health < 5)
         health++; // reward a life
+    
+    recentlyAcceptedWord = words[index].text;
+    showAcceptedTimer = 6;
+    lastAcceptedX = words[index].x;
+    lastAcceptedY = words[index].y;
+    lastAcceptedWidth = textwidth(const_cast<char *>(words[index].text.c_str()));
+    acceptedGlowFrame = 0;
+
+    // Bullet from bottom center to the word
+    int bulletStartX = screenWidth / 2;
+    int bulletStartY = screenHeight - 10;
+    int bulletEndX = words[index].x + textwidth(const_cast<char *>(words[index].text.c_str())) / 2;
+    int bulletEndY = words[index].y + textheight(const_cast<char *>(words[index].text.c_str())) / 2;
+
+    drawBresenhamLine(bulletStartX, bulletStartY, bulletEndX, bulletEndY, LIGHTRED);
+    delay(50);  // or 100ms for a quick flash
+    
     words.erase(words.begin() + index);
     typed.clear();
 }
@@ -700,6 +843,20 @@ void runGame()
                     setcolor(YELLOW);
                     settextstyle(BOLD_FONT, HORIZ_DIR, 2);
                     outtextxy(messageX, 50, currentPowerUpMessage);
+
+                    // 🔵 Add circle glow around the power-up message
+                    int msgW = textwidth(currentPowerUpMessage);
+                    int msgH = textheight(currentPowerUpMessage);
+                    int msgX = messageX - 20;
+                    int msgY = 50 + msgH / 2;
+
+                    // Use a fixed radius or based on height only
+                    int radius = msgH / 2 + 10;
+                    drawMidpointCircle(msgX, msgY, radius, YELLOW);
+
+                    msgX = messageX + msgW + 20;
+                    msgY = 50 + msgH / 2;
+                    drawMidpointCircle(msgX, msgY, radius, YELLOW);
                 }
                 else
                 {

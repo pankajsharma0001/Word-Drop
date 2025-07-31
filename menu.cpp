@@ -126,7 +126,7 @@ void showMenu() {
         SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
     }
 
-    splashScreen();
+    // splashScreen();
     PlaySound(TEXT("resources/menu_music.wav"), NULL, SND_FILENAME | SND_LOOP | SND_ASYNC);
 
     while (state != EXIT) {
